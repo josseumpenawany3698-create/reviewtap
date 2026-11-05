@@ -1,4 +1,4 @@
-"use client";
+use client;
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -258,7 +258,7 @@ useEffect(() => {
               <span>Total Produk</span>
               <div className="stat-icon purple">▣</div>
             </div>
-            <h3>—</h3>
+            <h3>{statsLoading ? "..." : stats.totalProducts}</h3>
             <p>Data produk akan ditampilkan setelah integrasi.</p>
           </div>
 
@@ -267,7 +267,7 @@ useEffect(() => {
               <span>Produk Aktif</span>
               <div className="stat-icon green">✓</div>
             </div>
-            <h3>—</h3>
+            <h3>{statsLoading ? "..." : stats.activeProducts}</h3>
             <p>Produk yang sudah terdaftar.</p>
           </div>
 
@@ -276,7 +276,7 @@ useEffect(() => {
               <span>Stok Tersedia</span>
               <div className="stat-icon orange">▤</div>
             </div>
-            <h3>—</h3>
+            <h3>{statsLoading ? "..." : stats.availableProducts}</h3>
             <p>Produk yang belum diaktivasi.</p>
           </div>
 
@@ -285,7 +285,7 @@ useEffect(() => {
               <span>Total Pelanggan</span>
               <div className="stat-icon blue">♙</div>
             </div>
-            <h3>—</h3>
+            <h3>{statsLoading ? "..." : stats.totalClients}</h3>
             <p>Bisnis yang sudah terdaftar.</p>
           </div>
         </section>
