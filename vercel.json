@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/001",
+      "destination": "https://search.google.com/local/writereview?placeid=ChIJ_a71whR0aS4RD3Xy_7cC-t0",
+      "permanent": false
+    }
+  ]
+}
