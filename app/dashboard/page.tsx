@@ -16,7 +16,15 @@ export default function Dashboard() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [checking, setChecking] = useState(true);
-  const [signingOut, setSigningOut] = useState(false);
+const [signingOut, setSigningOut] = useState(false);
+  const [stats, setStats] = useState({
+  totalProducts: 0,
+  activeProducts: 0,
+  availableProducts: 0,
+  totalClients: 0,
+});
+
+const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     if (!supabase) {
@@ -53,7 +61,70 @@ export default function Dashboard() {
       subscription.unsubscribe();
     };
   }, [router]);
+useEffect(() => {
+  if (checking || !supabase) return;
 
+  let cancelled = false;
+
+  async function loadStats() {
+    setStatsLoading(true);
+
+    const [
+      totalResult,
+      activeResult,
+      availableResult,
+      clientsResult,
+    ] = await Promise.all([
+      supabase!.from("products").select("*", {
+        count: "exact",
+        head: true,
+      }),
+      supabase!.from("products").select("*", {
+        count: "exact",
+        head: true,
+      }).eq("status", "active"),
+      supabase!.from("products").select("*", {
+        count: "exact",
+        head: true,
+      }).eq("status", "available"),
+      supabase!.from("clients").select("*", {
+        count: "exact",
+        head: true,
+      }),
+    ]);
+
+    if (cancelled) return;
+
+    if (
+      totalResult.error ||
+      activeResult.error ||
+      availableResult.error ||
+      clientsResult.error
+    ) {
+      console.error("Gagal mengambil statistik:", {
+        totalResult,
+        activeResult,
+        availableResult,
+        clientsResult,
+      });
+    }
+
+    setStats({
+      totalProducts: totalResult.count ?? 0,
+      activeProducts: activeResult.count ?? 0,
+      availableProducts: availableResult.count ?? 0,
+      totalClients: clientsResult.count ?? 0,
+    });
+
+    setStatsLoading(false);
+  }
+
+  loadStats();
+
+  return () => {
+    cancelled = true;
+  };
+}, [checking]);
   async function handleLogout() {
     if (!supabase) return;
 
