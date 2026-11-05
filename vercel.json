@@ -2,7 +2,17 @@
   "redirects": [
     {
       "source": "/001",
-      "destination": "https://search.google.com/local/writereview?placeid=ChIJ_a71whR0aS4RD3Xy_7cC-t0",
+      "destination": "https://search.google.com/local/writereview?placeid=ChIJ_a71wHr0aS4RD3Xy_7cC-t0",
+      "permanent": false
+    },
+    {
+      "source": "/002",
+      "destination": "https://search.google.com/local/writereview?placeid=ChIJ_a71wHr0aS4RD3Xy_7cC-t0",
+      "permanent": false
+    },
+    {
+      "source": "/003",
+      "destination": "https://search.google.com/local/writereview?placeid=ChIJ_a71wHr0aS4RD3Xy_7cC-t0",
       "permanent": false
     }
   ]
