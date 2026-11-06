@@ -180,21 +180,23 @@ useEffect(() => {
 
         <div className="nav-label">MENU UTAMA</div>
 
-        <nav className="navigation">
-          <a className="nav-item active" href="#overview">
-            <span>▦</span> Overview
-          </a>
-          <a className="nav-item" href="#products">
-            <span>▣</span> Manajemen Produk
-          </a>
-          <a className="nav-item" href="#clients">
-            <span>♙</span> Data Pelanggan
-          </a>
-          <a className="nav-item" href="#history">
-            <span>◷</span> Riwayat Aktivasi
-          </a>
-        </nav>
+      <nav className="navigation">
+  <a className="nav-item active" href="/dashboard">
+    <span>▦</span> Overview
+  </a>
 
+  <a className="nav-item" href="/dashboard/products">
+    <span>▣</span> Manajemen Produk
+  </a>
+
+  <a className="nav-item" href="/dashboard/clients">
+    <span>♙</span> Data Pelanggan
+  </a>
+
+  <a className="nav-item" href="/dashboard/history">
+    <span>◷</span> Riwayat Aktivasi
+  </a>
+</nav>
         <div className="sidebar-bottom">
           <div className="admin-card">
             <div className="admin-avatar">A</div>
