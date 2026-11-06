@@ -43,6 +43,11 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  const [showAddProduct, setShowAddProduct] = useState(false);
+const [newProductType, setNewProductType] = useState<"NFC" | "QR">("NFC");
+const [newProductQuantity, setNewProductQuantity] = useState("1");
+const [savingProducts, setSavingProducts] = useState(false);
+const [productMessage, setProductMessage] = useState("");
   const [dataError, setDataError] = useState("");
 
   const supabase = useMemo(() => {
@@ -51,7 +56,57 @@ export default function Home() {
 
     return url && key ? createClient(url, key) : null;
   }, []);
+async function handleAddProducts() {
+  if (!supabase) return;
 
+  const quantity = Number(newProductQuantity);
+
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
+    setProductMessage("Jumlah produk harus 1 sampai 500.");
+    return;
+  }
+
+  setSavingProducts(true);
+  setProductMessage("");
+
+  const { data: existingProducts, error: fetchError } =
+    await supabase.from("products").select("code");
+
+  if (fetchError) {
+    setProductMessage("Gagal membaca stok produk.");
+    setSavingProducts(false);
+    return;
+  }
+
+  const highestNumber = (existingProducts || []).reduce(
+    (max, product) => {
+      const match = product.code.match(/^\/?(\d+)$/);
+      return match ? Math.max(max, Number(match[1])) : max;
+    },
+    0
+  );
+
+  const newProducts = Array.from({ length: quantity }, (_, index) => ({
+    code: `/${String(highestNumber + index + 1).padStart(3, "0")}`,
+    product_type: newProductType,
+    status: "available",
+  }));
+
+  const { error } = await supabase.from("products").insert(newProducts);
+
+  if (error) {
+    setProductMessage("Gagal menambahkan produk. Periksa kembali database.");
+    setSavingProducts(false);
+    return;
+  }
+
+  setProductMessage(`${quantity} produk berhasil ditambahkan.`);
+  setNewProductQuantity("1");
+  setShowAddProduct(false);
+  setSavingProducts(false);
+
+  window.location.reload();
+}
   useEffect(() => {
     if (!supabase) return;
 
@@ -411,6 +466,64 @@ export default function Home() {
                 </button>
               </div>
 
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "20px" }}>
+  <button
+    onClick={() => {
+      setShowAddProduct(!showAddProduct);
+      setProductMessage("");
+    }}
+    style={{
+      background: "#5b45ed",
+      color: "white",
+      border: "none",
+      borderRadius: "10px",
+      padding: "13px 22px",
+      cursor: "pointer",
+      fontWeight: 600,
+    }}
+  >
+    + Tambah Produk
+  </button>
+</div>
+
+{showAddProduct && (
+  <div className="table-card" style={{ padding: "24px", marginBottom: "20px" }}>
+    <h3>Tambah Stok Produk</h3>
+    <p className="muted">Masukkan jenis dan jumlah kartu yang ingin ditambahkan.</p>
+
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleAddProducts();
+      }}
+    >
+      <label>Jenis Produk</label>
+      <select
+        value={newProductType}
+        onChange={(e) => setNewProductType(e.target.value as "NFC" | "QR")}
+      >
+        <option value="NFC">NFC</option>
+        <option value="QR">QR Code</option>
+      </select>
+
+      <label>Jumlah Produk</label>
+      <input
+        type="number"
+        min="1"
+        max="500"
+        value={newProductQuantity}
+        onChange={(e) => setNewProductQuantity(e.target.value)}
+        required
+      />
+
+      {productMessage && <p>{productMessage}</p>}
+
+      <button type="submit" disabled={savingProducts}>
+        {savingProducts ? "Menyimpan..." : "Simpan Stok"}
+      </button>
+    </form>
+  </div>
+)}
               <div className="table-card">
                 <table>
                   <thead>
