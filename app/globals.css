@@ -192,3 +192,51 @@ a {
     padding: 24px;
   }
 }
+/* REVIEWTAP - Form Manajemen Produk */
+.table-card form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.table-card form label {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.table-card form select,
+.table-card form input {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+
+.table-card form select:focus,
+.table-card form input:focus {
+  border-color: #5b4bed;
+  box-shadow: 0 0 0 3px rgba(91, 75, 237, 0.1);
+}
+
+.table-card form button {
+  min-height: 44px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 9px;
+  background: #5b4bed;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.table-card form button:hover {
+  background: #4938d5;
+}
