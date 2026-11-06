@@ -14,7 +14,14 @@ type Product = {
   code: string;
   product_type: "NFC" | "QR";
   status: "available" | "active" | "inactive";
+  client_id?: string | null;
   created_at: string;
+};
+
+type Client = {
+  id: string;
+  business_name: string;
+  review_url: string;
 };
 
 export default function ProductsPage() {
@@ -34,6 +41,10 @@ export default function ProductsPage() {
   const [editStatus, setEditStatus] = useState<
     "available" | "active" | "inactive"
   >("available");
+
+  const [clients, setClients] = useState<Client[]>([]);
+  const [activating, setActivating] = useState<Product | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState("");
 
   async function loadProducts() {
     const { data, error } = await supabase
@@ -68,7 +79,18 @@ export default function ProductsPage() {
         .select("*")
         .order("created_at", { ascending: false });
 
+      const { data: clientData, error: clientError } = await supabase
+        .from("clients")
+        .select("id, business_name, review_url")
+        .order("created_at", { ascending: false });
+
       if (!mounted) return;
+
+      if (clientError) {
+        setMessage("Gagal mengambil data pelanggan: " + clientError.message);
+      } else {
+        setClients((clientData || []) as Client[]);
+      }
 
       if (error) {
         setMessage("Gagal mengambil data produk: " + error.message);
@@ -165,6 +187,76 @@ export default function ProductsPage() {
       await loadProducts();
     }
 
+    setSaving(false);
+  }
+
+  function openActivation(product: Product) {
+    setActivating(product);
+    setSelectedClientId("");
+    setMessage("");
+  }
+
+  async function handleActivateProduct(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!activating || !selectedClientId) {
+      setMessage("Pilih pelanggan terlebih dahulu.");
+      return;
+    }
+
+    const selectedClient = clients.find(
+      (client) => client.id === selectedClientId
+    );
+
+    if (!selectedClient) {
+      setMessage("Data pelanggan tidak ditemukan. Muat ulang halaman.");
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+
+    const activatedAt = new Date().toISOString();
+
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({
+        client_id: selectedClient.id,
+        status: "active",
+        activated_at: activatedAt,
+      })
+      .eq("id", activating.id)
+      .eq("status", "available");
+
+    if (updateError) {
+      setMessage("Gagal mengaktifkan produk: " + updateError.message);
+      setSaving(false);
+      return;
+    }
+
+    const { error: historyError } = await supabase
+      .from("registration_history")
+      .insert({
+        product_id: activating.id,
+        client_id: selectedClient.id,
+        review_url_snapshot: selectedClient.review_url,
+        action: "activated",
+      });
+
+    if (historyError) {
+      setMessage(
+        "Produk sudah aktif, tetapi riwayat aktivasi gagal disimpan: " +
+          historyError.message
+      );
+    } else {
+      setMessage(
+        `Produk ${activating.code} berhasil diaktifkan untuk ${selectedClient.business_name}.`
+      );
+    }
+
+    setActivating(null);
+    setSelectedClientId("");
+    await loadProducts();
     setSaving(false);
   }
 
@@ -363,6 +455,16 @@ export default function ProductsPage() {
 
                     <td style={styles.td}>
                       <div style={styles.actions}>
+                        {product.status === "available" && (
+                          <button
+                            style={styles.activateButton}
+                            onClick={() => openActivation(product)}
+                            disabled={saving}
+                          >
+                            Aktivasi
+                          </button>
+                        )}
+
                         <button
                           style={styles.editButton}
                           onClick={() => openEdit(product)}
@@ -387,6 +489,68 @@ export default function ProductsPage() {
           </div>
         )}
       </section>
+
+      {activating && (
+        <div style={styles.overlay}>
+          <form onSubmit={handleActivateProduct} style={styles.modal}>
+            <h2 style={styles.cardTitle}>Aktivasi Produk</h2>
+            <p style={styles.subtitle}>
+              Hubungkan produk {activating.code} ({activating.product_type})
+              dengan pelanggan.
+            </p>
+
+            {clients.length === 0 ? (
+              <p style={styles.warning}>
+                Belum ada pelanggan. Tambahkan pelanggan terlebih dahulu di
+                menu Data Pelanggan.
+              </p>
+            ) : (
+              <label style={styles.field}>
+                Pilih Pelanggan
+                <select
+                  style={styles.input}
+                  value={selectedClientId}
+                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  required
+                >
+                  <option value="">-- Pilih pelanggan --</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.business_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {selectedClientId && (
+              <p style={styles.helper}>
+                Produk akan diarahkan ke Google Review milik{" "}
+                {clients.find((client) => client.id === selectedClientId)
+                  ?.business_name || "pelanggan terpilih"}.
+              </p>
+            )}
+
+            <div style={styles.actions}>
+              <button
+                type="button"
+                style={styles.cancelButton}
+                onClick={() => setActivating(null)}
+                disabled={saving}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                style={styles.addButton}
+                disabled={saving || clients.length === 0 || !selectedClientId}
+              >
+                {saving ? "Mengaktifkan..." : "Aktifkan Produk"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {editing && (
         <div style={styles.overlay}>
@@ -608,6 +772,28 @@ const styles: Record<string, CSSProperties> = {
     gap: "8px",
     flexWrap: "wrap",
     alignItems: "center",
+  },
+  activateButton: {
+    padding: "9px 14px",
+    background: "#dcfce7",
+    color: "#15803d",
+    border: 0,
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: 650,
+  },
+  warning: {
+    color: "#b45309",
+    background: "#fffbeb",
+    border: "1px solid #fde68a",
+    borderRadius: "9px",
+    padding: "12px",
+    fontSize: "14px",
+  },
+  helper: {
+    color: "#64748b",
+    fontSize: "13px",
+    margin: 0,
   },
   editButton: {
     padding: "9px 14px",
