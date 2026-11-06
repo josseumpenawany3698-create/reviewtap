@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
@@ -28,34 +28,18 @@ export default function ProductsPage() {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    let mounted = true;
+  const [editing, setEditing] = useState<Product | null>(null);
+  const [editCode, setEditCode] = useState("");
+  const [editType, setEditType] = useState<"NFC" | "QR">("NFC");
+  const [editStatus, setEditStatus] = useState<
+    "available" | "active" | "inactive"
+  >("available");
 
-    async function initialize() {
-      const { data } = await supabase.auth.getSession();
-
-      if (!data.session) {
-        router.replace("/");
-        return;
-      }
-
-      await loadProducts(mounted);
-    }
-
-    initialize();
-
-    return () => {
-      mounted = false;
-    };
-  }, [router]);
-
-  async function loadProducts(mounted = true) {
+  async function loadProducts() {
     const { data, error } = await supabase
       .from("products")
       .select("*")
       .order("created_at", { ascending: false });
-
-    if (!mounted) return;
 
     if (error) {
       setMessage("Gagal mengambil data produk: " + error.message);
@@ -65,6 +49,42 @@ export default function ProductsPage() {
 
     setLoading(false);
   }
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function initialize() {
+      const { data } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+
+      if (!data.session) {
+        router.replace("/");
+        return;
+      }
+
+      const { data: productData, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!mounted) return;
+
+      if (error) {
+        setMessage("Gagal mengambil data produk: " + error.message);
+      } else {
+        setProducts((productData || []) as Product[]);
+      }
+
+      setLoading(false);
+    }
+
+    initialize();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
 
   async function handleAddProduct(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -93,7 +113,83 @@ export default function ProductsPage() {
       );
     } else {
       setCode("");
+      setType("NFC");
       setMessage("Produk berhasil ditambahkan!");
+      await loadProducts();
+    }
+
+    setSaving(false);
+  }
+
+  function openEdit(product: Product) {
+    setEditing(product);
+    setEditCode(product.code);
+    setEditType(product.product_type);
+    setEditStatus(product.status);
+    setMessage("");
+  }
+
+  async function handleUpdateProduct(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!editing) return;
+
+    const cleanCode = editCode.trim();
+
+    if (!cleanCode) {
+      setMessage("Kode produk tidak boleh kosong.");
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+
+    const { error } = await supabase
+      .from("products")
+      .update({
+        code: cleanCode,
+        product_type: editType,
+        status: editStatus,
+      })
+      .eq("id", editing.id);
+
+    if (error) {
+      setMessage(
+        error.code === "23505"
+          ? "Kode produk sudah digunakan."
+          : "Gagal mengubah produk: " + error.message
+      );
+    } else {
+      setEditing(null);
+      setMessage("Produk berhasil diperbarui!");
+      await loadProducts();
+    }
+
+    setSaving(false);
+  }
+
+  async function handleDeleteProduct(product: Product) {
+    const confirmed = window.confirm(
+      `Yakin ingin menghapus produk ${product.code}? Tindakan ini tidak dapat dibatalkan.`
+    );
+
+    if (!confirmed) return;
+
+    setSaving(true);
+    setMessage("");
+
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", product.id);
+
+    if (error) {
+      setMessage(
+        "Gagal menghapus produk. Produk mungkin sudah memiliki riwayat aktivasi. Detail: " +
+          error.message
+      );
+    } else {
+      setMessage(`Produk ${product.code} berhasil dihapus.`);
       await loadProducts();
     }
 
@@ -140,18 +236,21 @@ export default function ProductsPage() {
           <span>Total Produk</span>
           <strong>{products.length}</strong>
         </div>
+
         <div style={styles.summaryCard}>
           <span>Produk NFC</span>
           <strong>
             {products.filter((p) => p.product_type === "NFC").length}
           </strong>
         </div>
+
         <div style={styles.summaryCard}>
           <span>Produk QR</span>
           <strong>
             {products.filter((p) => p.product_type === "QR").length}
           </strong>
         </div>
+
         <div style={styles.summaryCard}>
           <span>Stok Tersedia</span>
           <strong>
@@ -173,7 +272,7 @@ export default function ProductsPage() {
               style={styles.input}
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Contoh: 001"
+              placeholder="Contoh: 002"
               required
             />
           </label>
@@ -232,15 +331,19 @@ export default function ProductsPage() {
                   <th style={styles.th}>Jenis</th>
                   <th style={styles.th}>Status</th>
                   <th style={styles.th}>Tanggal Ditambahkan</th>
+                  <th style={styles.th}>Aksi</th>
                 </tr>
               </thead>
+
               <tbody>
                 {filteredProducts.map((product) => (
                   <tr key={product.id}>
                     <td style={styles.td}>
                       <strong>{product.code}</strong>
                     </td>
+
                     <td style={styles.td}>{product.product_type}</td>
+
                     <td style={styles.td}>
                       <span
                         style={{
@@ -251,10 +354,31 @@ export default function ProductsPage() {
                         {statusLabel(product.status)}
                       </span>
                     </td>
+
                     <td style={styles.td}>
                       {new Date(product.created_at).toLocaleDateString(
                         "id-ID"
                       )}
+                    </td>
+
+                    <td style={styles.td}>
+                      <div style={styles.actions}>
+                        <button
+                          style={styles.editButton}
+                          onClick={() => openEdit(product)}
+                          disabled={saving}
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          style={styles.deleteButton}
+                          onClick={() => handleDeleteProduct(product)}
+                          disabled={saving}
+                        >
+                          Hapus
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -263,11 +387,86 @@ export default function ProductsPage() {
           </div>
         )}
       </section>
+
+      {editing && (
+        <div style={styles.overlay}>
+          <form onSubmit={handleUpdateProduct} style={styles.modal}>
+            <h2 style={styles.cardTitle}>Edit Produk</h2>
+            <p style={styles.subtitle}>
+              Ubah informasi produk {editing.code}.
+            </p>
+
+            <label style={styles.field}>
+              Kode Produk
+              <input
+                style={styles.input}
+                value={editCode}
+                onChange={(e) => setEditCode(e.target.value)}
+                required
+              />
+            </label>
+
+            <label style={styles.field}>
+              Jenis Produk
+              <select
+                style={styles.input}
+                value={editType}
+                onChange={(e) =>
+                  setEditType(e.target.value as "NFC" | "QR")
+                }
+              >
+                <option value="NFC">NFC</option>
+                <option value="QR">QR Code</option>
+              </select>
+            </label>
+
+            <label style={styles.field}>
+              Status Produk
+              <select
+                style={styles.input}
+                value={editStatus}
+                onChange={(e) =>
+                  setEditStatus(
+                    e.target.value as "available" | "active" | "inactive"
+                  )
+                }
+              >
+                <option value="available">Tersedia</option>
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+              </select>
+            </label>
+
+            <div style={styles.actions}>
+              <button
+                type="button"
+                style={styles.cancelButton}
+                onClick={() => setEditing(null)}
+                disabled={saving}
+              >
+                Batal
+              </button>
+
+              <button
+                type="submit"
+                style={styles.addButton}
+                disabled={saving}
+              >
+                {saving ? "Menyimpan..." : "Simpan Perubahan"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <p style={styles.footer}>
+        REVIEWTAP Admin — Smart Review Management System
+      </p>
     </main>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, CSSProperties> = {
   page: {
     minHeight: "100vh",
     padding: "40px",
@@ -404,9 +603,69 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     fontSize: "13px",
   },
+  actions: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  editButton: {
+    padding: "9px 14px",
+    background: "#edeaff",
+    color: "#5946e8",
+    border: 0,
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: 650,
+  },
+  deleteButton: {
+    padding: "9px 14px",
+    background: "#fee2e2",
+    color: "#dc2626",
+    border: 0,
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: 650,
+  },
+  cancelButton: {
+    padding: "12px 18px",
+    background: "#f1f2f6",
+    color: "#475569",
+    border: 0,
+    borderRadius: "9px",
+    cursor: "pointer",
+  },
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(15, 23, 42, 0.55)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "20px",
+    zIndex: 1000,
+  },
+  modal: {
+    background: "#fff",
+    borderRadius: "16px",
+    padding: "28px",
+    width: "100%",
+    maxWidth: "480px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
+    maxHeight: "90vh",
+    overflowY: "auto",
+  },
   empty: {
     padding: "35px",
     textAlign: "center",
     color: "#929bb0",
+  },
+  footer: {
+    textAlign: "center",
+    color: "#929bb0",
+    fontSize: "12px",
+    marginTop: "30px",
   },
 };
