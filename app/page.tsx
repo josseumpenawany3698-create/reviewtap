@@ -624,9 +624,13 @@ async function handleAddProducts() {
 
       window.location.reload();
     }}
-    disabled={product.status === "inactive"}
+    disabled={product.status !== "active"}
   >
-    {product.status === "inactive" ? "Nonaktif" : "Nonaktifkan"}
+    {product.status === "active"
+  ? "Nonaktifkan"
+  : product.status === "inactive"
+  ? "Nonaktif"
+  : "Belum Aktif"}
   </button>
 </td>
                         </tr>
