@@ -49,7 +49,10 @@ const [newProductQuantity, setNewProductQuantity] = useState("1");
 const [savingProducts, setSavingProducts] = useState(false);
 const [productMessage, setProductMessage] = useState("");
   const [dataError, setDataError] = useState("");
-
+const [registrationProductId, setRegistrationProductId] = useState("");
+const [registrationClientId, setRegistrationClientId] = useState("");
+const [registrationMessage, setRegistrationMessage] = useState("");
+const [savingRegistration, setSavingRegistration] = useState(false);
   const supabase = useMemo(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -104,6 +107,82 @@ async function handleAddProducts() {
   setNewProductQuantity("1");
   setShowAddProduct(false);
   setSavingProducts(false);
+
+  window.location.reload();
+}
+  async function handleRegisterProduct(
+  e: React.FormEvent<HTMLFormElement>
+) {
+  e.preventDefault();
+
+  if (!supabase) return;
+
+  if (!registrationProductId || !registrationClientId) {
+    setRegistrationMessage("Pilih produk dan pelanggan terlebih dahulu.");
+    return;
+  }
+
+  setSavingRegistration(true);
+  setRegistrationMessage("");
+
+  const { data: client, error: clientError } = await supabase
+    .from("clients")
+    .select("id, review_url")
+    .eq("id", registrationClientId)
+    .single();
+
+  if (clientError || !client?.review_url) {
+    setRegistrationMessage("URL Google Review pelanggan belum tersedia.");
+    setSavingRegistration(false);
+    return;
+  }
+
+  const { data: updatedProduct, error: updateError } = await supabase
+    .from("products")
+    .update({
+      status: "active",
+      client_id: registrationClientId,
+      activated_at: new Date().toISOString(),
+    })
+    .eq("id", registrationProductId)
+    .eq("status", "available")
+    .select("id")
+    .maybeSingle();
+
+  if (updateError || !updatedProduct) {
+    setRegistrationMessage("Gagal mengaktifkan produk.");
+    setSavingRegistration(false);
+    return;
+  }
+
+  const { error: historyError } = await supabase
+    .from("registration_history")
+    .insert({
+      product_id: registrationProductId,
+      client_id: registrationClientId,
+      review_url_snapshot: client.review_url,
+      action: "activated",
+    });
+
+  if (historyError) {
+    await supabase
+      .from("products")
+      .update({
+        status: "available",
+        client_id: null,
+        activated_at: null,
+      })
+      .eq("id", registrationProductId);
+
+    setRegistrationMessage("Gagal menyimpan riwayat aktivasi.");
+    setSavingRegistration(false);
+    return;
+  }
+
+  setRegistrationMessage("Registrasi berhasil!");
+  setRegistrationProductId("");
+  setRegistrationClientId("");
+  setSavingRegistration(false);
 
   window.location.reload();
 }
@@ -682,16 +761,78 @@ async function handleAddProducts() {
           )}
 
           {activeMenu === "registrations" && (
-            <div className="coming-card">
-              <div className="coming-icon">▤</div>
-              <h2>Registrasi Produk</h2>
-              <p>
-                Modul untuk menghubungkan kode kartu dengan data pelanggan
-                dan Google Review akan dibangun pada tahap berikutnya.
-              </p>
-            </div>
-          )}
+  <>
+    <div className="section-heading">
+      <div>
+        <h3>Registrasi Produk</h3>
+        <p>
+          Hubungkan kartu REVIEWTAP dengan pelanggan dan Google Review.
+        </p>
+      </div>
+    </div>
 
+    <div className="table-card">
+      <h3>Form Registrasi Kartu</h3>
+
+      <form onSubmit={handleRegisterProduct}>
+        <label>Pilih Kode Produk</label>
+        <select
+          value={registrationProductId}
+          onChange={(e) => setRegistrationProductId(e.target.value)}
+          required
+        >
+          <option value="">-- Pilih Kode Kartu --</option>
+
+          {products
+            .filter((product) => product.status === "available")
+            .map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.code} - {product.product_type}
+              </option>
+            ))}
+        </select>
+
+        <label>Pilih Pelanggan</label>
+        <select
+          value={registrationClientId}
+          onChange={(e) => setRegistrationClientId(e.target.value)}
+          required
+        >
+          <option value="">-- Pilih Pelanggan --</option>
+
+          {clients.map((client) => (
+            <option key={client.id} value={client.id}>
+              {client.business_name}
+            </option>
+          ))}
+        </select>
+
+        {registrationMessage && (
+          <p
+            style={{
+              color: registrationMessage.includes("berhasil")
+                ? "green"
+                : "red",
+              marginTop: "15px",
+            }}
+          >
+            {registrationMessage}
+          </p>
+        )}
+
+        <button type="submit" disabled={savingRegistration}>
+          {savingRegistration
+            ? "Memproses Registrasi..."
+            : "Aktifkan Produk"}
+        </button>
+      </form>
+
+      <p style={{ color: "#778094", marginTop: "18px" }}>
+        Pastikan pelanggan sudah terdaftar dan memiliki URL Google Review.
+      </p>
+    </div>
+  </>
+)}
           {activeMenu === "history" && (
             <>
               <div className="section-heading">
