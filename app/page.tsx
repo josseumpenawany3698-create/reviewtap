@@ -577,12 +577,13 @@ async function handleAddProducts() {
                       <th>Jenis Produk</th>
                       <th>Status</th>
                       <th>Tanggal Dibuat</th>
+                      <th>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
                     {products.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="empty-state">
+                        <td colSpan={5} className="empty-state">
                           Belum ada produk di database.
                         </td>
                       </tr>
@@ -599,6 +600,35 @@ async function handleAddProducts() {
                           <td>
                             {new Date(product.created_at).toLocaleDateString("id-ID")}
                           </td>
+                          <td>
+  <button
+    type="button"
+    onClick={async () => {
+      if (!supabase) return;
+
+      const confirmed = window.confirm(
+        `Nonaktifkan produk ${product.code}?`
+      );
+
+      if (!confirmed) return;
+
+      const { error } = await supabase
+        .from("products")
+        .update({ status: "inactive" })
+        .eq("id", product.id);
+
+      if (error) {
+        alert("Gagal menonaktifkan produk.");
+        return;
+      }
+
+      window.location.reload();
+    }}
+    disabled={product.status === "inactive"}
+  >
+    {product.status === "inactive" ? "Nonaktif" : "Nonaktifkan"}
+  </button>
+</td>
                         </tr>
                       ))
                     )}
