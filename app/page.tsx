@@ -261,24 +261,24 @@ async function handleAddProducts() {
           .select("id, business_name, contact_name, contact_phone, created_at")
           .order("created_at", { ascending: false })
           .limit(10),
-        supabase
-  .from("registration_history")
-  .select(`
-    id,
-    product_id,
-    client_id,
-    review_url_snapshot,
-    action,
-    created_at,
-    products (
-      code,
-      product_type
-    ),
-    clients (
-      business_name
-    )
-  `)
-  .order("created_at", { ascending: false }),
+          supabase
+          .from("registration_history")
+          .select(`
+            id,
+            product_id,
+            client_id,
+            review_url_snapshot,
+            action,
+            created_at,
+            products!registration_history_product_id_fkey (
+              code,
+              product_type
+            ),
+            clients!registration_history_client_id_fkey (
+              business_name
+            )
+          `)
+          .order("created_at", { ascending: false }),
       ]);
 
       if (
