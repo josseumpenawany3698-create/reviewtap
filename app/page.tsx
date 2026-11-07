@@ -29,10 +29,10 @@ type RegistrationHistory = {
   products: {
     code: string;
     product_type: string;
-  } | null;
+  }[];
   clients: {
     business_name: string;
-  } | null;
+  }[];
 };
 
 const menuItems = [
