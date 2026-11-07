@@ -34,12 +34,6 @@ type RegistrationHistory = {
     business_name: string;
   } | null;
 };
-  id: string;
-  business_name: string;
-  contact_name: string | null;
-  contact_phone: string | null;
-  created_at: string;
-};
 
 const menuItems = [
   { id: "overview", label: "Overview", icon: "▦" },
@@ -245,6 +239,7 @@ async function handleAddProducts() {
         availableCount,
         productList,
         clientList,
+        historyList,
       ] = await Promise.all([
         supabase.from("products").select("*", { count: "exact", head: true }),
         supabase.from("clients").select("*", { count: "exact", head: true }),
@@ -666,7 +661,7 @@ async function handleAddProducts() {
                       products.slice(0, 5).map((product) => (
                         <tr key={product.id}>
                           <td>
-                            <strong>/{product.code}</strong>
+                            <strong>{product.code}</strong>
                           </td>
                           <td>{product.product_type}</td>
                           <td>
@@ -712,7 +707,7 @@ async function handleAddProducts() {
                     ) : (
                       products.map((product) => (
                         <tr key={product.id}>
-                          <td><strong>/{product.code}</strong></td>
+                          <td><strong>{product.code}</strong></td>
                           <td>{product.product_type}</td>
                           <td>
                             <span className={`status ${product.status}`}>
@@ -937,33 +932,7 @@ async function handleAddProducts() {
     </div>
   </>
 )}
-            <>
-              <div className="section-heading">
-                <div>
-                  <h3>Riwayat Aktivasi</h3>
-                  <p>Catatan registrasi dan perubahan produk.</p>
-                </div>
-              </div>
-              <div className="table-card">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Informasi</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colSpan={2} className="empty-state">
-                        Riwayat aktivasi akan ditampilkan setelah modul
-                        registrasi selesai dibuat.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+
         </div>
       </section>
 
