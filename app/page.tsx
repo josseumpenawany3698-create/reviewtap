@@ -26,13 +26,9 @@ type RegistrationHistory = {
   review_url_snapshot: string;
   action: string;
   created_at: string;
-  products: {
-    code: string;
-    product_type: string;
-  }[];
-  clients: {
-    business_name: string;
-  }[];
+  product_code: string;
+  product_type: string;
+  business_name: string;
 };
 
 const menuItems = [
@@ -269,14 +265,7 @@ async function handleAddProducts() {
             client_id,
             review_url_snapshot,
             action,
-            created_at,
-            products!registration_history_product_id_fkey (
-              code,
-              product_type
-            ),
-            clients!registration_history_client_id_fkey (
-              business_name
-            )
+            created_at
           `)
           .order("created_at", { ascending: false }),
       ]);
@@ -298,10 +287,24 @@ async function handleAddProducts() {
         setAvailableProducts(availableCount.count || 0);
         setProducts(productList.data || []);
         setClients(clientList.data || []);
-        setRegistrationHistory(historyList.data || []);
-      }
+       setRegistrationHistory(
+  (historyList.data || []).map((history) => {
+    const product = (productList.data || []).find(
+      (item) => item.id === history.product_id
+    );
 
-      setDataLoading(false);
+    const client = (clientList.data || []).find(
+      (item) => item.id === history.client_id
+    );
+
+    return {
+      ...history,
+      product_code: product?.code || "-",
+      product_type: product?.product_type || "-",
+      business_name: client?.business_name || "-",
+    };
+  })
+);
     }
 
     loadDashboard();
