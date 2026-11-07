@@ -18,6 +18,7 @@ type Client = {
   contact_phone: string | null;
   created_at: string;
   review_url?: string;
+  place_id?: string;
 };
 
 type RegistrationHistory = {
@@ -62,6 +63,12 @@ export default function Home() {
   const [newClientContactPhone, setNewClientContactPhone] = useState("");
   const [savingClient, setSavingClient] = useState(false);
   const [clientMessage, setClientMessage] = useState("");
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [editClientBusinessName, setEditClientBusinessName] = useState("");
+  const [editClientPlaceId, setEditClientPlaceId] = useState("");
+  const [editClientContactName, setEditClientContactName] = useState("");
+  const [editClientContactPhone, setEditClientContactPhone] = useState("");
+  const [savingClientEdit, setSavingClientEdit] = useState(false);
   const [registrationHistory, setRegistrationHistory] = useState<RegistrationHistory[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
@@ -261,7 +268,7 @@ async function handleAddProducts() {
           .order("created_at", { ascending: false }),
         supabase
           .from("clients")
-          .select("id, business_name, contact_name, contact_phone, created_at, review_url")
+          .select("id, business_name, place_id, contact_name, contact_phone, created_at, review_url")
           .order("created_at", { ascending: false }),
           supabase
           .from("registration_history")
@@ -349,7 +356,7 @@ async function handleAddProducts() {
         contact_name: newClientContactName.trim() || null,
         contact_phone: newClientContactPhone.trim() || null,
       })
-      .select("id, business_name, contact_name, contact_phone, created_at, review_url")
+      .select("id, business_name, place_id, contact_name, contact_phone, created_at, review_url")
       .single();
 
     if (error) {
@@ -367,6 +374,61 @@ async function handleAddProducts() {
     setShowAddClient(false);
     setClientMessage("Pelanggan berhasil ditambahkan.");
     setSavingClient(false);
+  }
+
+  function startEditClient(client: Client) {
+    setEditingClientId(client.id);
+    setEditClientBusinessName(client.business_name);
+    setEditClientPlaceId(client.place_id || "");
+    setEditClientContactName(client.contact_name || "");
+    setEditClientContactPhone(client.contact_phone || "");
+    setClientMessage("");
+    setShowAddClient(false);
+  }
+
+  async function handleUpdateClient(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setClientMessage("");
+
+    if (!supabase || !editingClientId) {
+      setClientMessage("Pelanggan tidak ditemukan atau koneksi database belum tersedia.");
+      return;
+    }
+
+    const businessName = editClientBusinessName.trim();
+    const placeId = editClientPlaceId.trim();
+
+    if (!businessName || !placeId) {
+      setClientMessage("Nama bisnis dan Place ID wajib diisi.");
+      return;
+    }
+
+    setSavingClientEdit(true);
+    const reviewUrl = `https://search.google.com/local/writereview?placeid=${encodeURIComponent(placeId)}`;
+
+    const { data, error } = await supabase
+      .from("clients")
+      .update({
+        business_name: businessName,
+        place_id: placeId,
+        review_url: reviewUrl,
+        contact_name: editClientContactName.trim() || null,
+        contact_phone: editClientContactPhone.trim() || null,
+      })
+      .eq("id", editingClientId)
+      .select("id, business_name, place_id, contact_name, contact_phone, created_at, review_url")
+      .single();
+
+    if (error) {
+      setClientMessage(`Gagal memperbarui pelanggan: ${error.message}`);
+      setSavingClientEdit(false);
+      return;
+    }
+
+    setClients((current) => current.map((client) => client.id === editingClientId ? (data as Client) : client));
+    setEditingClientId(null);
+    setClientMessage("Data pelanggan dan URL Google Review berhasil diperbarui.");
+    setSavingClientEdit(false);
   }
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
@@ -715,7 +777,7 @@ async function handleAddProducts() {
                   <tbody>
                     {products.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="empty-state">
+                        <td colSpan={4} className="empty-state">
                           Belum ada produk. Tambahkan stok produk pertama Anda.
                         </td>
                       </tr>
@@ -907,6 +969,35 @@ async function handleAddProducts() {
                 )}
               </div>
 
+              {editingClientId && (
+                <div className="table-card" style={{ padding: "24px", marginBottom: "16px" }}>
+                  <h3>Edit Data Pelanggan</h3>
+                  <p className="muted">Perbarui Place ID untuk mengganti tujuan Google Review pelanggan ini.</p>
+                  <form onSubmit={handleUpdateClient}>
+                    <label>Nama Bisnis *</label>
+                    <input value={editClientBusinessName} onChange={(e) => setEditClientBusinessName(e.target.value)} required />
+
+                    <label>Place ID Google Maps *</label>
+                    <input value={editClientPlaceId} onChange={(e) => setEditClientPlaceId(e.target.value)} placeholder="Masukkan Place ID baru" required />
+
+                    <label>Nama Kontak</label>
+                    <input value={editClientContactName} onChange={(e) => setEditClientContactName(e.target.value)} />
+
+                    <label>Nomor Telepon</label>
+                    <input type="tel" value={editClientContactPhone} onChange={(e) => setEditClientContactPhone(e.target.value)} />
+
+                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                      <button type="submit" disabled={savingClientEdit}>
+                        {savingClientEdit ? "Menyimpan..." : "Simpan Perubahan"}
+                      </button>
+                      <button type="button" onClick={() => setEditingClientId(null)} disabled={savingClientEdit} style={{ background: "#eef0f5", color: "#303548" }}>
+                        Batal
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
               <div className="table-card">
                 <table>
                   <thead>
@@ -914,6 +1005,7 @@ async function handleAddProducts() {
                       <th>Nama Bisnis</th>
                       <th>Nama Kontak</th>
                       <th>Nomor Telepon</th>
+                      <th>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -929,6 +1021,15 @@ async function handleAddProducts() {
                           <td><strong>{client.business_name}</strong></td>
                           <td>{client.contact_name || "-"}</td>
                           <td>{client.contact_phone || "-"}</td>
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => startEditClient(client)}
+                              style={{ width: "auto", marginTop: 0, padding: "8px 14px" }}
+                            >
+                              Edit
+                            </button>
+                          </td>
                         </tr>
                       ))
                     )}
