@@ -55,6 +55,13 @@ export default function Home() {
   const [availableProducts, setAvailableProducts] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [newClientBusinessName, setNewClientBusinessName] = useState("");
+  const [newClientPlaceId, setNewClientPlaceId] = useState("");
+  const [newClientContactName, setNewClientContactName] = useState("");
+  const [newClientContactPhone, setNewClientContactPhone] = useState("");
+  const [savingClient, setSavingClient] = useState(false);
+  const [clientMessage, setClientMessage] = useState("");
   const [registrationHistory, setRegistrationHistory] = useState<RegistrationHistory[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
@@ -311,6 +318,56 @@ async function handleAddProducts() {
 
     loadDashboard();
   }, [supabase, loggedIn]);
+
+  async function handleAddClient(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setClientMessage("");
+
+    if (!supabase) {
+      setClientMessage("Konfigurasi Supabase belum tersedia.");
+      return;
+    }
+
+    const businessName = newClientBusinessName.trim();
+    const placeId = newClientPlaceId.trim();
+
+    if (!businessName || !placeId) {
+      setClientMessage("Nama bisnis dan Place ID wajib diisi.");
+      return;
+    }
+
+    setSavingClient(true);
+
+    const reviewUrl = `https://search.google.com/local/writereview?placeid=${encodeURIComponent(placeId)}`;
+
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        business_name: businessName,
+        place_id: placeId,
+        review_url: reviewUrl,
+        contact_name: newClientContactName.trim() || null,
+        contact_phone: newClientContactPhone.trim() || null,
+      })
+      .select("id, business_name, contact_name, contact_phone, created_at, review_url")
+      .single();
+
+    if (error) {
+      setClientMessage(`Gagal menyimpan pelanggan: ${error.message}`);
+      setSavingClient(false);
+      return;
+    }
+
+    setClients((current) => [data as Client, ...current]);
+    setTotalClients((current) => current + 1);
+    setNewClientBusinessName("");
+    setNewClientPlaceId("");
+    setNewClientContactName("");
+    setNewClientContactPhone("");
+    setShowAddClient(false);
+    setClientMessage("Pelanggan berhasil ditambahkan.");
+    setSavingClient(false);
+  }
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -772,6 +829,84 @@ async function handleAddProducts() {
                   <p>Bisnis yang sudah terdaftar di REVIEWTAP.</p>
                 </div>
               </div>
+
+              <div style={{ marginBottom: "16px" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddClient((current) => !current);
+                    setClientMessage("");
+                  }}
+                  style={{
+                    width: "auto",
+                    marginTop: 0,
+                    padding: "12px 20px",
+                  }}
+                >
+                  {showAddClient ? "Batal" : "+ Tambah Pelanggan"}
+                </button>
+
+                {showAddClient && (
+                  <div className="table-card" style={{ padding: "24px", marginTop: "16px" }}>
+                    <h3>Tambah Pelanggan Baru</h3>
+                    <p className="muted">
+                      Masukkan data bisnis dan Place ID Google Maps. URL Google Review akan dibuat otomatis.
+                    </p>
+
+                    <form onSubmit={handleAddClient}>
+                      <label>Nama Bisnis *</label>
+                      <input
+                        type="text"
+                        value={newClientBusinessName}
+                        onChange={(e) => setNewClientBusinessName(e.target.value)}
+                        placeholder="Contoh: Cakra Laundry"
+                        required
+                      />
+
+                      <label>Place ID Google Maps *</label>
+                      <input
+                        type="text"
+                        value={newClientPlaceId}
+                        onChange={(e) => setNewClientPlaceId(e.target.value)}
+                        placeholder="Contoh: ChIJ_a71wHr0aS4RD3Xy_7cC-t0"
+                        required
+                      />
+
+                      <label>Nama Kontak</label>
+                      <input
+                        type="text"
+                        value={newClientContactName}
+                        onChange={(e) => setNewClientContactName(e.target.value)}
+                        placeholder="Nama pemilik atau PIC"
+                      />
+
+                      <label>Nomor Telepon</label>
+                      <input
+                        type="tel"
+                        value={newClientContactPhone}
+                        onChange={(e) => setNewClientContactPhone(e.target.value)}
+                        placeholder="08xxxxxxxxxx"
+                      />
+
+                      <button type="submit" disabled={savingClient}>
+                        {savingClient ? "Menyimpan..." : "Simpan Pelanggan"}
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {clientMessage && (
+                  <p
+                    style={{
+                      color: clientMessage.startsWith("Pelanggan berhasil") ? "#159c62" : "#dc2626",
+                      marginTop: "12px",
+                    }}
+                  >
+                    {clientMessage}
+                  </p>
+                )}
+              </div>
+
               <div className="table-card">
                 <table>
                   <thead>
