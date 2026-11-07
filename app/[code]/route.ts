@@ -29,7 +29,7 @@ export async function GET(
 
     const { data: reviewUrl, error } = await supabase.rpc(
       "get_review_url",
-      { p_code: `/${code}` }
+      { p_code: code }
     );
 
     if (error) {
