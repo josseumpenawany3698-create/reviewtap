@@ -903,13 +903,13 @@ async function handleAddProducts() {
             registrationHistory.map((history) => (
               <tr key={history.id}>
                 <td>
-                  {history.products?.code || "-"}
+                  {history.products?.[0]?.code || "-"}
                 </td>
                 <td>
-                  {history.products?.product_type || "-"}
+                  {history.products?.[0]?.product_type || "-"}
                 </td>
                 <td>
-                  {history.clients?.business_name || "-"}
+                  {history.clients?.[0]?.business_name || "-"}
                 </td>
                 <td>
                   <a
