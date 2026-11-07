@@ -19,6 +19,28 @@ type Client = {
   created_at: string;
 };
 
+type RegistrationHistory = {
+  id: string;
+  product_id: string;
+  client_id: string;
+  review_url_snapshot: string;
+  action: string;
+  created_at: string;
+  products: {
+    code: string;
+    product_type: string;
+  } | null;
+  clients: {
+    business_name: string;
+  } | null;
+};
+  id: string;
+  business_name: string;
+  contact_name: string | null;
+  contact_phone: string | null;
+  created_at: string;
+};
+
 const menuItems = [
   { id: "overview", label: "Overview", icon: "▦" },
   { id: "products", label: "Produk", icon: "▣" },
@@ -42,6 +64,7 @@ export default function Home() {
   const [availableProducts, setAvailableProducts] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [registrationHistory, setRegistrationHistory] = useState<RegistrationHistory[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
 const [newProductType, setNewProductType] = useState<"NFC" | "QR">("NFC");
@@ -243,16 +266,35 @@ async function handleAddProducts() {
           .select("id, business_name, contact_name, contact_phone, created_at")
           .order("created_at", { ascending: false })
           .limit(10),
+        supabase
+  .from("registration_history")
+  .select(`
+    id,
+    product_id,
+    client_id,
+    review_url_snapshot,
+    action,
+    created_at,
+    products (
+      code,
+      product_type
+    ),
+    clients (
+      business_name
+    )
+  `)
+  .order("created_at", { ascending: false }),
       ]);
 
       if (
-        productCount.error ||
-        clientCount.error ||
-        activeCount.error ||
-        availableCount.error ||
-        productList.error ||
-        clientList.error
-      ) {
+  productCount.error ||
+  clientCount.error ||
+  activeCount.error ||
+  availableCount.error ||
+  productList.error ||
+  clientList.error ||
+  historyList.error
+) {
         setDataError("Gagal memuat data. Periksa kebijakan akses database.");
       } else {
         setTotalProducts(productCount.count || 0);
@@ -261,6 +303,7 @@ async function handleAddProducts() {
         setAvailableProducts(availableCount.count || 0);
         setProducts(productList.data || []);
         setClients(clientList.data || []);
+        setRegistrationHistory(historyList.data || []);
       }
 
       setDataLoading(false);
@@ -834,6 +877,66 @@ async function handleAddProducts() {
   </>
 )}
           {activeMenu === "history" && (
+  <>
+    <div className="section-heading">
+      <div>
+        <h3>Riwayat Aktivasi</h3>
+        <p>Catatan registrasi dan perubahan produk.</p>
+      </div>
+    </div>
+
+    <div className="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Kode Produk</th>
+            <th>Jenis</th>
+            <th>Nama Pelanggan</th>
+            <th>URL Google Review</th>
+            <th>Tanggal Aktivasi</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {registrationHistory.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="empty-state">
+                Belum ada riwayat aktivasi.
+              </td>
+            </tr>
+          ) : (
+            registrationHistory.map((history) => (
+              <tr key={history.id}>
+                <td>
+                  {history.products?.code || "-"}
+                </td>
+                <td>
+                  {history.products?.product_type || "-"}
+                </td>
+                <td>
+                  {history.clients?.business_name || "-"}
+                </td>
+                <td>
+                  <a
+                    href={history.review_url_snapshot}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Lihat Google Review
+                  </a>
+                </td>
+                <td>
+                  {new Date(history.created_at).toLocaleString("id-ID")}
+                </td>
+                <td>{history.action}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </>
+)}
             <>
               <div className="section-heading">
                 <div>
