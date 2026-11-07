@@ -8,6 +8,7 @@ type Product = {
   code: string;
   product_type: string;
   status: string;
+  client_id?: string | null;
   created_at: string;
 };
 
@@ -76,6 +77,10 @@ const [newProductType, setNewProductType] = useState<"NFC" | "QR">("NFC");
 const [newProductQuantity, setNewProductQuantity] = useState("1");
 const [savingProducts, setSavingProducts] = useState(false);
 const [productMessage, setProductMessage] = useState("");
+const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+const [editProductClientId, setEditProductClientId] = useState("");
+const [savingProductEdit, setSavingProductEdit] = useState(false);
+const [productEditMessage, setProductEditMessage] = useState("");
   const [dataError, setDataError] = useState("");
 const [registrationProductId, setRegistrationProductId] = useState("");
 const [registrationClientId, setRegistrationClientId] = useState("");
@@ -138,6 +143,74 @@ async function handleAddProducts() {
 
   window.location.reload();
 }
+  function startEditProduct(product: Product) {
+    setEditingProduct(product);
+    setEditProductClientId(product.client_id || "");
+    setProductEditMessage("");
+  }
+
+  async function handleUpdateProduct(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!supabase || !editingProduct) return;
+
+    if (!editProductClientId) {
+      setProductEditMessage("Pilih pelanggan terlebih dahulu.");
+      return;
+    }
+
+    setSavingProductEdit(true);
+    setProductEditMessage("");
+
+    const { data: client, error: clientError } = await supabase
+      .from("clients")
+      .select("id, review_url")
+      .eq("id", editProductClientId)
+      .single();
+
+    if (clientError || !client?.review_url) {
+      setProductEditMessage("URL Google Review pelanggan tidak ditemukan.");
+      setSavingProductEdit(false);
+      return;
+    }
+
+    const { data: updatedProduct, error: updateError } = await supabase
+      .from("products")
+      .update({
+        client_id: editProductClientId,
+        status: "active",
+        activated_at: new Date().toISOString(),
+      })
+      .eq("id", editingProduct.id)
+      .select("id")
+      .single();
+
+    if (updateError || !updatedProduct) {
+      setProductEditMessage(`Gagal memperbarui produk: ${updateError?.message || "Produk tidak ditemukan."}`);
+      setSavingProductEdit(false);
+      return;
+    }
+
+    const { error: historyError } = await supabase
+      .from("registration_history")
+      .insert({
+        product_id: editingProduct.id,
+        client_id: editProductClientId,
+        review_url_snapshot: client.review_url,
+        action: "updated",
+      });
+
+    if (historyError) {
+      setProductEditMessage(`Produk sudah diperbarui, tetapi riwayat gagal disimpan: ${historyError.message}`);
+      setSavingProductEdit(false);
+      window.location.reload();
+      return;
+    }
+
+    setProductEditMessage("Produk dan tujuan Google Review berhasil diperbarui.");
+    setSavingProductEdit(false);
+    window.location.reload();
+  }
+
   async function handleRegisterProduct(
   e: React.FormEvent<HTMLFormElement>
 ) {
@@ -264,7 +337,7 @@ async function handleAddProducts() {
           .eq("status", "available"),
         supabase
           .from("products")
-          .select("id, code, product_type, status, created_at")
+          .select("id, code, product_type, status, client_id, created_at")
           .order("created_at", { ascending: false }),
         supabase
           .from("clients")
@@ -810,6 +883,26 @@ async function handleAddProducts() {
                   <p>Daftar seluruh kartu NFC dan QR REVIEWTAP.</p>
                 </div>
               </div>
+              {editingProduct && (
+                <div className="table-card" style={{ padding: "24px", marginBottom: "16px" }}>
+                  <h3>Edit Produk {editingProduct.code}</h3>
+                  <p className="muted">Pilih pelanggan untuk mengubah tujuan Google Review kartu ini. QR/NFC fisik tidak perlu dibuat ulang.</p>
+                  <form onSubmit={handleUpdateProduct}>
+                    <label>Pelanggan</label>
+                    <select value={editProductClientId} onChange={(e) => setEditProductClientId(e.target.value)} required>
+                      <option value="">-- Pilih Pelanggan --</option>
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>{client.business_name}</option>
+                      ))}
+                    </select>
+                    {productEditMessage && <p style={{ color: productEditMessage.includes("berhasil") ? "green" : "#dc2626" }}>{productEditMessage}</p>}
+                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                      <button type="submit" disabled={savingProductEdit}>{savingProductEdit ? "Menyimpan..." : "Simpan Perubahan"}</button>
+                      <button type="button" onClick={() => { setEditingProduct(null); setProductEditMessage(""); }} disabled={savingProductEdit} style={{ background: "#eef0f5", color: "#303548" }}>Batal</button>
+                    </div>
+                  </form>
+                </div>
+              )}
               <div className="table-card">
                 <table>
                   <thead>
@@ -842,6 +935,13 @@ async function handleAddProducts() {
                             {new Date(product.created_at).toLocaleDateString("id-ID")}
                           </td>
                           <td>
+  <button
+    type="button"
+    onClick={() => startEditProduct(product)}
+    style={{ width: "auto", marginTop: 0, marginRight: "8px", padding: "8px 14px" }}
+  >
+    Edit
+  </button>
   <button
     type="button"
     onClick={async () => {
