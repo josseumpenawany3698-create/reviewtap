@@ -287,7 +287,7 @@ async function handleAddProducts() {
         setAvailableProducts(availableCount.count || 0);
         setProducts(productList.data || []);
         setClients(clientList.data || []);
-       setRegistrationHistory(
+      setRegistrationHistory(
   (historyList.data || []).map((history) => {
     const product = (productList.data || []).find(
       (item) => item.id === history.product_id
@@ -305,11 +305,8 @@ async function handleAddProducts() {
     };
   })
 );
-    }
-
-    loadDashboard();
-  }, [supabase, loggedIn]);
-
+setDataLoading(false);
+}
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage("");
@@ -906,13 +903,13 @@ async function handleAddProducts() {
             registrationHistory.map((history) => (
               <tr key={history.id}>
                 <td>
-                  {history.products?.[0]?.code || "-"}
+                  {history.product_code || "-"}
                 </td>
                 <td>
-                  {history.products?.[0]?.product_type || "-"}
+                  {history.product_type || "-"}
                 </td>
                 <td>
-                  {history.clients?.[0]?.business_name || "-"}
+                  {history.business_name || "-"}
                 </td>
                 <td>
                   <a
