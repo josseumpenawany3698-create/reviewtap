@@ -17,6 +17,7 @@ type Client = {
   contact_name: string | null;
   contact_phone: string | null;
   created_at: string;
+  review_url?: string;
 };
 
 type RegistrationHistory = {
@@ -250,13 +251,11 @@ async function handleAddProducts() {
         supabase
           .from("products")
           .select("id, code, product_type, status, created_at")
-          .order("created_at", { ascending: false })
-          .limit(10),
+          .order("created_at", { ascending: false }),
         supabase
           .from("clients")
-          .select("id, business_name, contact_name, contact_phone, created_at")
-          .order("created_at", { ascending: false })
-          .limit(10),
+          .select("id, business_name, contact_name, contact_phone, created_at, review_url")
+          .order("created_at", { ascending: false }),
           supabase
           .from("registration_history")
           .select(`
@@ -287,26 +286,32 @@ async function handleAddProducts() {
         setAvailableProducts(availableCount.count || 0);
         setProducts(productList.data || []);
         setClients(clientList.data || []);
-      setRegistrationHistory(
-  (historyList.data || []).map((history) => {
-    const product = (productList.data || []).find(
-      (item) => item.id === history.product_id
-    );
+        setRegistrationHistory(
+          (historyList.data || []).map((history) => {
+            const product = (productList.data || []).find(
+              (item) => item.id === history.product_id
+            );
 
-    const client = (clientList.data || []).find(
-      (item) => item.id === history.client_id
-    );
+            const client = (clientList.data || []).find(
+              (item) => item.id === history.client_id
+            );
 
-    return {
-      ...history,
-      product_code: product?.code || "-",
-      product_type: product?.product_type || "-",
-      business_name: client?.business_name || "-",
-    };
-  })
-);
-setDataLoading(false);
-}
+            return {
+              ...history,
+              product_code: product?.code || "-",
+              product_type: product?.product_type || "-",
+              business_name: client?.business_name || "-",
+            };
+          })
+        );
+      }
+
+      setDataLoading(false);
+    }
+
+    loadDashboard();
+  }, [supabase, loggedIn]);
+
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage("");
